@@ -135,7 +135,7 @@ void sudoku()
 		#pragma omp parallel for private(combinacion)
 		for (long i = 0; i < cantCombinaciones; i++)
 		{
-			#pragma omp single
+			
 			for (int j = 0; j < 16; j++)
 			{
 				for (int k = 0; k < 16; k++)
