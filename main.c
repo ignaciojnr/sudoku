@@ -7,7 +7,7 @@
 
 void printMatriz(int matriz[16][16]);
 void sudoku();
-void calcularPosibles(int ejercicio[16][16], int ***numPosibles, int** cantNumPOsibles, int fila, int columna);
+void calcularPosibles(const int ejercicio[16][16], int ***numPosibles, int** cantNumPOsibles, int fila, int columna);
 void validarCombinacion(int cominacion[16][16]);
 int existeEnFila(int tablero[16][16], int fila, int num);
 int existeEnColumna(int tablero[16][16], int columna, int num);
@@ -64,65 +64,78 @@ void sudoku()
 	int** cantNumPOsibles;
 	cantNumPOsibles = (int**)calloc(16, sizeof(int*));
 	//shared(numPosibles,cantNumPOsibles)
-	#pragma omp parallel 
+	#pragma omp parallel for
+	for (int i = 0; i < 16; i++)
 	{
-		#pragma omp for
-		for (int i = 0; i < 16; i++)
+		numPosibles[i] = (int**)calloc(16, sizeof(int*));
+	}
+
+	#pragma omp parallel for collapse(2)
+	for (int i = 0; i < 16; i++)
+	{
+		for (int j = 0; j < 16; j++)
 		{
-			numPosibles[i] = (int**)calloc(16, sizeof(int*));
-
-			#pragma omp for
-			for (int j = 0; j < 16; j++)
-			{
-				numPosibles[i][j] = (int*)calloc(16, sizeof(int));
-
-				#pragma omp for	
-				for (int k = 0; k < 16; k++)
-				{
-					numPosibles[i][j][k] = 0;
-				}
-			}
+			numPosibles[i][j] = (int*)calloc(16, sizeof(int));
 		}
+	}
 
-		#pragma omp for
-		for (int i = 0; i < 16; i++) {
-			cantNumPOsibles[i] = (int*)calloc(16, sizeof(int));
-			#pragma omp for
-			for (int j = 0; j < 16; j++) {
-				cantNumPOsibles[i][j] = 0;
+	#pragma omp parallel for collapse(3)
+	for (int i = 0; i < 16; i++)
+	{
+		for (int j = 0; j < 16; j++)
+		{
+			for (int k = 0; k < 16; k++)
+			{
+				numPosibles[i][j][k] = 0;
 			}
 		}
 	}
 
-	
-		#pragma omp parallel for collapse(2)
-		for (int i = 0; i < 16; i++)
-		{
-			for (int j = 0; j < 16; j++)
-			{
-				calcularPosibles(ejercicio, numPosibles, cantNumPOsibles, i, j);
-			}
+	#pragma omp parallel for
+	for (int i = 0; i < 16; i++) 
+	{
+	cantNumPOsibles[i] = (int*)calloc(16, sizeof(int));
+	}
+
+	#pragma omp parallel for collapse(2)
+	for (int i = 0; i < 16; i++) {
+		for (int j = 0; j < 16; j++) {
+			cantNumPOsibles[i][j] = 0;
 		}
+	}
+	
+
+	
+	#pragma omp parallel for collapse(2)
+	for (int i = 0; i < 16; i++)
+	{
+		for (int j = 0; j < 16; j++)
+		{
+			calcularPosibles(ejercicio, numPosibles, cantNumPOsibles, i, j);
+		}
+	}
 	
 
 	long cantCombinaciones = 1;
 
 		
-		#pragma omp parallel for collapse(2) reduction(*:cantCombinaciones)
-		for (int i = 0; i < 16; i++)
+	#pragma omp parallel for collapse(2) reduction(*:cantCombinaciones)
+	for (int i = 0; i < 16; i++)
+	{
+		for (int j = 0; j < 16; j++)
 		{
-			for (int j = 0; j < 16; j++)
-			{
-				cantCombinaciones *= cantNumPOsibles[i][j];
-			}
+			cantCombinaciones *= cantNumPOsibles[i][j];
 		}
+	}
+	
+	int combinacion[16][16];
 	
 	#pragma omp parallel private(combinacion)
 	{
 		#pragma omp for
 		for (long i = 0; i < cantCombinaciones; i++)
 		{
-			int combinacion[16][16];
+			
 			for (int j = 0; j < 16; j++)
 			{
 				for (int k = 0; k < 16; k++)
@@ -150,12 +163,15 @@ void calcularPosibles(int ejercicio[16][16], int*** numPosibles, int** cantNumPO
 	{
 		
 		int count = 0;
+		int flag1 = 0;
+		int flag2 = 0;
+		int flag3 = 0;
 		#pragma omp parallel for private(flag1, flag2, flag3) shared(count)
 		for (int i = 1; i <= 16; i++)
 		{
-			int flag1 = 0;
-			int flag2 = 0;
-			int flag3 = 0;
+			flag1 = 0;
+			flag2 = 0;
+			flag3 = 0;
 			flag1 += existeEnFila(ejercicio,fila,i);
 			flag2 += existeEnColumna(ejercicio,columna,i);
 			flag3 += existeEnRecuadro(ejercicio, fila - fila % 4, columna - columna % 4, i);
@@ -177,7 +193,7 @@ void validarCombinacion(int cominacion[16][16])
 {
 	int flag = 0;
 	
-	#pragma omp parallel for collapse(2) reduction(+:flag1,+)
+	#pragma omp parallel for collapse(2) reduction(+:flag)
 	for (int i = 0; i < 16; i++)
 	{
 		for (int j = 0; j < 16; j++)
