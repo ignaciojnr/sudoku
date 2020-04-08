@@ -7,12 +7,12 @@
 
 void printMatriz(int matriz[16][16]);
 void sudoku();
-void calcularPosibles(const int ejercicio[16][16], int ***numPosibles, int** cantNumPOsibles, int fila, int columna);
+void calcularPosibles(int ejercicio[16][16], int ***numPosibles, int** cantNumPOsibles, int fila, int columna);
 void validarCombinacion(int cominacion[16][16]);
 int existeEnFila(int tablero[16][16], int fila, int num);
 int existeEnColumna(int tablero[16][16], int columna, int num);
 int existeEnRecuadro(int tablero[16][16], int subFila, int subColumna, int num);
-//void agregarPosibles(int ejercicio[16][16], int*** numPosibles, int** cantNumPOsibles, int fila, int columna);
+
 
 int main()
 {
@@ -41,7 +41,7 @@ int main()
 
 void sudoku()
 {
-	const int ejercicio[16][16] = {
+	int ejercicio[16][16] = {
 									{0,12,9,0,7,8,0,14,0,0,0,5,4,0,0,0},
 									{7,0,0,0,3,0,0,0,15,0,0,14,6,0,0,0},
 									{0,0,0,2,0,9,0,0,0,0,10,0,0,0,0,0},
@@ -59,11 +59,13 @@ void sudoku()
 									{0,0,0,0,0,10,0,0,0,0,5,16,0,14,4,12},
 									{0,0,0,0,0,4,11,12,14,0,0,8,7,0,5,0}
 								   };
+	// almacena los numeros validos para probar, los que no se encuentran en el ejercicio inicial
 	int*** numPosibles;
 	numPosibles = (int***)calloc(16, sizeof(int**));
+	// almacena la cantidad de numeros validas para probar por casilla del sudoku
 	int** cantNumPOsibles;
 	cantNumPOsibles = (int**)calloc(16, sizeof(int*));
-	//shared(numPosibles,cantNumPOsibles)
+	// reserva memoria e inicializa en 0
 	#pragma omp parallel for
 	for (int i = 0; i < 16; i++)
 	{
@@ -105,7 +107,7 @@ void sudoku()
 	}
 	
 
-	
+	//calcula cuales son los numeros validos para probar
 	#pragma omp parallel for collapse(2)
 	for (int i = 0; i < 16; i++)
 	{
@@ -115,10 +117,10 @@ void sudoku()
 		}
 	}
 	
-
+	
 	long cantCombinaciones = 1;
 
-		
+	//calcula la cantidad de combinaciones que se pueden formar	
 	#pragma omp parallel for collapse(2) reduction(*:cantCombinaciones)
 	for (int i = 0; i < 16; i++)
 	{
@@ -129,13 +131,11 @@ void sudoku()
 	}
 	
 	int combinacion[16][16];
-	
-	#pragma omp parallel private(combinacion)
-	{
-		#pragma omp for
+	//genera una cada combinacion de numeros
+		#pragma omp parallel for private(combinacion)
 		for (long i = 0; i < cantCombinaciones; i++)
 		{
-			
+			#pragma omp single
 			for (int j = 0; j < 16; j++)
 			{
 				for (int k = 0; k < 16; k++)
@@ -143,21 +143,24 @@ void sudoku()
 					combinacion[j][k] = numPosibles[j][k][i % cantNumPOsibles[j][k]];
 				}
 			}
-			
+			// determina si la combinacion cumple con las reglas del sudoku
 			validarCombinacion(combinacion);
 		}
-	}
+	
 	
 	return;
 }
-
+/**
+ * para una posicion fila columna del ejercicio inicial carga en el arreglo cubico numPosibles 
+ * los numeros entre 1 y 16 que no se encuentren en la fila, columna, y cuadrante
+ */
 void calcularPosibles(int ejercicio[16][16], int*** numPosibles, int** cantNumPOsibles, int fila, int columna)
 {
-	
+	//si ya hay un valor este es la unica opcion posible
 	if (ejercicio[fila][columna] != 0)
 	{
-				numPosibles[fila][columna][0] = ejercicio[fila][columna];
-				cantNumPOsibles[fila][columna] = 1;
+		numPosibles[fila][columna][0] = ejercicio[fila][columna];
+		cantNumPOsibles[fila][columna] = 1;
 	}
 	else
 	{
@@ -166,6 +169,7 @@ void calcularPosibles(int ejercicio[16][16], int*** numPosibles, int** cantNumPO
 		int flag1 = 0;
 		int flag2 = 0;
 		int flag3 = 0;
+		//carga cada valor posible
 		#pragma omp parallel for private(flag1, flag2, flag3) shared(count)
 		for (int i = 1; i <= 16; i++)
 		{
@@ -188,7 +192,9 @@ void calcularPosibles(int ejercicio[16][16], int*** numPosibles, int** cantNumPO
 		}
 	}
 }
-
+/**
+ * determina si una combinacion [16][16] cumple con las reglas del sudoku
+ */
 void validarCombinacion(int cominacion[16][16])
 {
 	int flag = 0;
@@ -206,11 +212,14 @@ void validarCombinacion(int cominacion[16][16])
 
 	if (flag == 0)
 	{
-		printMatriz(cominacion);
+		//printMatriz(cominacion);
 	}
 
 }
 
+/**
+ * retorna 0 si un valor existe una unica vez en la fila
+ */
 int existeEnFila(int tablero[16][16], int fila, int num)
 {
 	int flag = 0;
@@ -222,6 +231,9 @@ int existeEnFila(int tablero[16][16], int fila, int num)
 	return (int)(flag !=1);
 }
 
+/**
+ * retorna 0 si un valor existe una unica vez en la columna
+ */
 int existeEnColumna(int tablero[16][16], int columna, int num)
 {
 	int flag = 0;
@@ -233,6 +245,9 @@ int existeEnColumna(int tablero[16][16], int columna, int num)
 	return (int)(flag != 1);
 }
 
+/**
+ * retorna 0 si un valor existe una unica vez en el sub cuadro
+ */
 int existeEnRecuadro(int tablero[16][16], int subFila, int subColumna, int num)
 {
 	int flag = 0;
